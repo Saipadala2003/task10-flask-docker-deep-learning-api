@@ -1,0 +1,13 @@
+.git
+.gitignore
+__pycache__
+*.py[cod]
+*.log
+.venv
+venv
+.env
+.DS_Store
+README.md
+report/
+screenshots/
+*.zip
