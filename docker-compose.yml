@@ -1,0 +1,10 @@
+services:
+  flask-dl-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: task10-flask-dl-api:latest
+    container_name: task10-flask-dl-api
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
