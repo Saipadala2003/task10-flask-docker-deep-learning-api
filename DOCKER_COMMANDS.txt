@@ -1,24 +1,39 @@
 # Task 10 - Docker command sequence
 
-docker --version
-docker info
+# 1. Verify Docker
+Docker --version
+Docker info
 
+# 2. From the project folder, verify the model exists
 dir deep_learning_model.h5
 
+# 3. Build image
 docker build --pull -t task10-flask-dl-api .
 
+# 4. List the image
 docker images task10-flask-dl-api
 
+# 5. Run the container
 docker run --rm --name task10-flask-dl-api -p 5000:5000 task10-flask-dl-api
 
+# 6. In another PowerShell window, verify health
 curl.exe http://127.0.0.1:5000/health
+
+# 7. Verify API root
 curl.exe http://127.0.0.1:5000/
 
+# 8. Test prediction with a digit image
 curl.exe -X POST "http://127.0.0.1:5000/predict" -F "file=@7.png"
 
+# 9. Inspect the running container
 docker ps
 docker inspect task10-flask-dl-api
+
+# 10. Inspect resource usage
 docker stats task10-flask-dl-api --no-stream
+
+# 11. Inspect image layers
 docker history task10-flask-dl-api
 
-python test_api.py
+# 12. Stop the container when finished (when not using --rm)
+docker stop task10-flask-dl-api

@@ -1,11 +1,14 @@
 import json
-from urllib.request import urlopen
+from pathlib import Path
+from urllib.request import urlopen, Request
 
 BASE_URL = "http://127.0.0.1:5000"
+
 
 def get_json(path: str):
     with urlopen(BASE_URL + path, timeout=5) as response:
         return response.status, json.loads(response.read().decode("utf-8"))
+
 
 if __name__ == "__main__":
     status, payload = get_json("/health")

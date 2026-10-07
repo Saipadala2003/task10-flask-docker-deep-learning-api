@@ -11,7 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = Path(os.getenv("MODEL_PATH", BASE_DIR / "deep_learning_model.h5"))
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
 
 if not MODEL_PATH.exists():
     raise FileNotFoundError(
@@ -19,11 +19,13 @@ if not MODEL_PATH.exists():
         "Place deep_learning_model.h5 beside flask_api.py or set MODEL_PATH."
     )
 
+# Load once when the service starts. This avoids reloading the model per request.
 model = load_model(MODEL_PATH, compile=False)
 print(f"CNN model loaded successfully from: {MODEL_PATH}")
 
 
 def preprocess_image(file_bytes: bytes) -> np.ndarray:
+    """Prepare an uploaded image for the MNIST CNN used in Task 8."""
     image = Image.open(BytesIO(file_bytes)).convert("L")
     image = ImageOps.fit(image, (28, 28), method=Image.Resampling.LANCZOS)
     pixels = np.asarray(image, dtype=np.float32) / 255.0
@@ -38,29 +40,35 @@ def preprocess_image(file_bytes: bytes) -> np.ndarray:
 
 @app.get("/")
 def index():
-    return jsonify({
-        "success": True,
-        "message": "MNIST CNN Flask API is running inside Docker.",
-        "endpoints": {"health": "/health", "predict": "/predict"},
-    }), 200
+    return jsonify(
+        {
+            "success": True,
+            "message": "MNIST CNN Flask API is running inside Docker.",
+            "endpoints": {"health": "/health", "predict": "/predict"},
+        }
+    ), 200
 
 
 @app.get("/health")
 def health():
-    return jsonify({
-        "success": True,
-        "status": "healthy",
-        "model_loaded": model is not None,
-    }), 200
+    return jsonify(
+        {
+            "success": True,
+            "status": "healthy",
+            "model_loaded": model is not None,
+        }
+    ), 200
 
 
 @app.post("/predict")
 def predict():
     if "file" not in request.files:
-        return jsonify({
-            "success": False,
-            "error": "Missing image. Send the uploaded image in form field 'file'.",
-        }), 400
+        return jsonify(
+            {
+                "success": False,
+                "error": "Missing image. Send the uploaded image in form field 'file'.",
+            }
+        ), 400
 
     uploaded = request.files["file"]
     if not uploaded.filename:
@@ -76,29 +84,33 @@ def predict():
         predicted_digit = int(np.argmax(probabilities))
         confidence = float(probabilities[predicted_digit])
 
-        return jsonify({
-            "success": True,
-            "predicted_digit": predicted_digit,
-            "confidence": confidence,
-            "confidence_percent": round(confidence * 100, 2),
-            "probabilities": [float(p) for p in probabilities],
-        }), 200
+        return jsonify(
+            {
+                "success": True,
+                "predicted_digit": predicted_digit,
+                "confidence": confidence,
+                "confidence_percent": round(confidence * 100, 2),
+                "probabilities": [float(p) for p in probabilities],
+            }
+        ), 200
 
     except Exception:
         app.logger.exception("Prediction failed")
-        return jsonify({
-            "success": False,
-            "error": "Could not process this image. Please upload a valid PNG, JPG, or JPEG.",
-        }), 400
+        return jsonify(
+            {
+                "success": False,
+                "error": "Could not process this image. Please upload a valid PNG, JPG, or JPEG.",
+            }
+        ), 400
 
 
 @app.errorhandler(413)
 def file_too_large(_error):
-    return jsonify({
-        "success": False,
-        "error": "File is too large (maximum 10 MB)."
-    }), 413
+    return jsonify(
+        {"success": False, "error": "File is too large (maximum 10 MB)."}
+    ), 413
 
 
 if __name__ == "__main__":
+    # Development fallback only; Docker uses Gunicorn via CMD.
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=False)

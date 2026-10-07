@@ -1,104 +1,74 @@
 # Task 10 - Containerizing Flask Deep Learning API
 
-This repository contains the completed Task 10 practical for packaging a Flask-based MNIST CNN inference API into a Docker container and validating the deployment locally.
+This project packages the Flask-based MNIST CNN inference API developed in the previous Flask/Streamlit task into a Docker image for local deployment.
 
-## Objectives
-- Create a Dockerfile for the Flask deep learning API.
-- Build a Docker image.
-- Run the API inside a Docker container.
-- Verify the root, health, and prediction endpoints.
-- Inspect container resource usage and image layers.
-- Apply Docker image optimization and runtime practices.
+## Project files
 
-## Project Structure
-```text
-task10-flask-docker-deep-learning-api/
-├── Dockerfile
-├── flask_api.py
-├── requirements.txt
-├── test_api.py
-├── docker-compose.yml
-├── .dockerignore
-├── DOCKER_COMMANDS.txt
-├── README.md
-├── screenshots/
-│   ├── 01_docker_build.png
-│   ├── 02_container_prediction.png
-│   ├── 03_health_check.png
-│   ├── 04_docker_stats.png
-│   ├── 05_docker_image_size.png
-│   ├── 06_docker_history.png
-│   └── 07_api_validation.png
-└── report/
-    └── Task_10_Final_Containerizing_Flask_Deep_Learning_API_Report.pdf
-```
+- `flask_api.py` - Flask REST API with `/`, `/health`, and `/predict` endpoints.
+- `deep_learning_model.h5` - compatible trained CNN model from the previous task (add this file before building).
+- `requirements.txt` - pinned runtime dependencies.
+- `Dockerfile` - optimized two-stage Docker build using Python 3.12-slim.
+- `.dockerignore` - reduces the Docker build context.
+- `test_api.py` - basic HTTP smoke test for `/` and `/health`.
+- `report/Task_10_Containerizing_Flask_Deep_Learning_API_Deployment_Report.pdf` - deployment report.
 
-## Model Prerequisite
-Place the compatible trained model from the previous Flask/MNIST task in the project root with the exact filename:
+## Prerequisite
+
+Place the trained model from the previous task in this folder using the exact filename:
 
 `deep_learning_model.h5`
 
-The Dockerfile copies that model into the image. The model is intentionally not substituted or fabricated; prediction results must use the actual trained model.
+The image is intentionally not generated or substituted in this package. Prediction must use the same model and preprocessing convention used by the previous task.
 
 ## Build
+
 ```powershell
-docker build --pull -t task10-flask-dl-api .
+docker build -t task10-flask-dl-api .
 ```
 
 ## Run
+
 ```powershell
 docker run --rm --name task10-flask-dl-api -p 5000:5000 task10-flask-dl-api
 ```
 
-The container listens on port 5000 and uses Gunicorn for the container runtime.
+## Verify
 
-## API Endpoints
-### Root
-```text
-GET http://127.0.0.1:5000/
-```
+Open in a browser:
 
-### Health
-```text
-GET http://127.0.0.1:5000/health
-```
+- `http://127.0.0.1:5000/`
+- `http://127.0.0.1:5000/health`
 
-Expected health response includes:
-```json
-{"success":true,"status":"healthy","model_loaded":true}
-```
+Expected health response includes `"status": "healthy"` and `"model_loaded": true`.
 
-### Prediction
+For prediction, send a multipart upload under the form field `file`:
+
 ```powershell
 curl.exe -X POST "http://127.0.0.1:5000/predict" -F "file=@7.png"
 ```
 
-The endpoint returns the predicted digit, confidence, and class probabilities.
+## Docker inspection
 
-## Validation Evidence
-The completed local validation recorded:
-- Docker image built successfully as `task10-flask-dl-api:latest`.
-- Container ran with port mapping `5000:5000`.
-- `/health` returned HTTP 200 with `model_loaded=true`.
-- `/predict` returned a successful prediction for the supplied digit image.
-- `docker stats` was used to record CPU and memory usage.
-- `docker images` was used to record image disk/content size.
-- `docker history` was used to inspect image layers.
-- `test_api.py` confirmed successful `GET /` and `GET /health` responses.
+```powershell
+docker images task10-flask-dl-api
+docker ps
+docker inspect task10-flask-dl-api
+docker stats task10-flask-dl-api --no-stream
+docker history task10-flask-dl-api
+```
 
-## Optimization Practices
-- Python 3.12 slim base image.
-- Multi-stage build with a dedicated virtual environment.
-- `pip --no-cache-dir`.
-- Minimal runtime OS dependency (`libgomp1`).
-- `.dockerignore` to reduce build context.
-- Non-root runtime user.
-- Docker `HEALTHCHECK`.
-- Gunicorn instead of Flask development server.
-- One Gunicorn worker by default to avoid unnecessary duplicate model copies in memory.
+## Optimization practices used
 
-## Submission
-The `report/` directory contains the final deployment report for LMS/trainer review. The `screenshots/` directory is intended for the ordered Docker evidence captured during the practical.
+1. `python:3.12-slim` is used instead of a full Python image.
+2. Dependencies are installed once into a virtual environment in a builder stage.
+3. `pip --no-cache-dir` avoids retaining package caches.
+4. `.dockerignore` removes Git metadata, Python caches, reports, screenshots, and local environments from the build context.
+5. The runtime container includes only the runtime OS library, prepared virtual environment, model, and API source.
+6. Gunicorn is used as the container entrypoint instead of Flask's development server.
+7. The container runs as a non-root user.
+8. A Docker `HEALTHCHECK` calls `/health`.
+9. One Gunicorn worker is used by default because each ML worker can load its own model copy into memory.
 
-Author: **Saikumar Padala**  
-Course: **MSc Artificial Intelligence**
+## Important compatibility note
+
+Keep the model preprocessing identical to the training pipeline. The supplied Flask implementation converts the uploaded image to grayscale, resizes/fits it to 28 x 28, normalizes pixels to [0, 1], and adapts to common Keras input shapes.
